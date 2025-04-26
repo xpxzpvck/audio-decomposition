@@ -1,37 +1,53 @@
 import numpy as np
 import librosa
+from initialization import *
+
+
+def log_compression(v, gamma=1.0):
+    """Logarithmically compresses a value or array
+    Parameters:
+        v (np.ndarray): Value or array
+        gamma (float): Compression factor
+
+    Returns:
+        v_compressed (np.ndarray): Compressed value or array
+    """
+    return np.log(1 + gamma * v)
+
 
 def audio_to_spectrogram(audio):
-    '''
+    """
     Convert audio to a magnitude spectrogram using Short-Time Fourier Transform (STFT).
     Parameters:
         audio (1D array): Input audio signal.
     Returns:
         V (2D array): Nonnegative magnitude spectrogram of the audio signal.
-    '''
+    """
     V = np.abs(librosa.stft(audio)).astype(np.float64)
     return V
 
+
 def spectrogram_to_audio(V):
-    '''
+    """
     Convert a magnitude spectrogram back to audio using the inverse Short-Time Fourier Transform (ISTFT).
     Parameters:
         V (2D array): Input magnitude spectrogram.
     Returns:
         audio (1D array): Reconstructed audio signal.
-    '''
+    """
     audio = librosa.istft(V)
     return audio
 
+
 def get_components(W, H):
-    '''
+    """
     Get the components from W and H matrices.
     Parameters:
         W (2D array): Template matrix.
         H (2D array): Activation matrix.
     Returns:
         components (list of 1D arrays): List of components.
-    '''
+    """
     components = []
     R = H.shape[0]
     for r in range(R):
@@ -39,8 +55,9 @@ def get_components(W, H):
         components.append(component)
     return components
 
+
 def nmf(V, R, max_iter=1000, threshold=0.0001, W=None, H=None):
-    '''
+    """
     Perform Non-negative Matrix Factorization (NMF) on the input spectrogram V.
     Parameters:
         V (2D array): Input magnitude spectrogram.
@@ -54,7 +71,7 @@ def nmf(V, R, max_iter=1000, threshold=0.0001, W=None, H=None):
         H (2D array): Activation matrix after decomposition.
         V_approx (2D array): Reconstructed spectrogram from W and H.
         V_approx_error (float): Reconstruction error.
-    '''
+    """
     K, N = V.shape
 
     if not W:
@@ -69,7 +86,9 @@ def nmf(V, R, max_iter=1000, threshold=0.0001, W=None, H=None):
         H_old = H.copy()
 
         # Update H
-        H = H * (W.T @ V) / (W.T @ W @ H + eps)  # Adding small epsilon to avoid division by zero
+        H = (
+            H * (W.T @ V) / (W.T @ W @ H + eps)
+        )  # Adding small epsilon to avoid division by zero
 
         # Update W
         W = W * (V @ H.T) / (W @ H @ H.T + eps)
