@@ -114,5 +114,3 @@ def split_midi_by_hand(midi_path, split_pitch=58):
 
     midi_lh.write(os.path.join(output_dir, f"{base_name}_lh.mid"))
     midi_rh.write(os.path.join(output_dir, f"{base_name}_rh.mid"))
-
-midi_to_csv("data/midi/happy_birthday.mid", "data/happy_birthday.csv")
