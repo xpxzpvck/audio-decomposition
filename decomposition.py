@@ -37,7 +37,7 @@ def reconstruct_sources(
 def _separate_score_informed(X, V, score_annotations, freq_res, frame_res, max_iter, threshold):
     pitch_set = utils.pitch_from_annotation(score_annotations)
     W_init, H_init = initialization.initialize_WH(V, score_annotations=score_annotations, pitch_set=pitch_set, freq_res=freq_res, frame_res=frame_res)
-    W, H, _, _ = nmf(V, len(pitch_set)*2, W=W_init, H=H_init, max_iter=max_iter, threshold=threshold)
+    W, H, _, _ = nmf.nmf(V, len(pitch_set)*2, W=W_init, H=H_init, max_iter=max_iter, threshold=threshold)
     return reconstruct_sources(X, W, H, score_annotations, pitch_set, frame_res)
 
 
