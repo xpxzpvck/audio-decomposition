@@ -4,7 +4,7 @@ import csv
 import os
 
 
-def midi_to_list(midi):
+def midi_to_list(midi, split_pitch=58):
     """Convert a midi file to a list of note events"""
 
     if isinstance(midi, str):
@@ -20,15 +20,15 @@ def midi_to_list(midi):
             duration = note.end - start
             pitch = note.pitch
             velocity = note.velocity / 127
-            hand = '"rh"' if pitch > 58 else '"lh"'
+            hand = '"rh"' if pitch > split_pitch else '"lh"'
             score.append([start, duration, pitch, velocity, hand])
     return score
 
 
-def midi_to_csv(midi_path, csv_path):
+def midi_to_csv(midi_path, csv_path, split_pitch=58):
     """Convert a midi file to a csv file"""
     midi_data = pretty_midi.PrettyMIDI(midi_path)
-    score = midi_to_list(midi_data)
+    score = midi_to_list(midi_data, split_pitch)
 
     df = pd.DataFrame(
         score, columns=["Start", "Duration", "Pitch", "Velocity", "Label"]
