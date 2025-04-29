@@ -26,7 +26,6 @@ def template_pitch(K: int, pitch: float, freq_res: float, tol_pitch: float = 0.0
 
 def init_W_pitch_onset(K: int, pitch_set: np.ndarray, freq_res: float, tol_pitch: float = 0.05) -> np.ndarray:
     """Initialize template matrix with onset and sustained templates."""
-    print(pitch_set)
     W = np.zeros((K, 2 * len(pitch_set)))
     for idx, pitch in enumerate(pitch_set):
         W[:, 2 * idx] = 0.1 
@@ -79,7 +78,6 @@ def initialize_WH(
         W_init = np.random.rand(V.shape[0], R)
         H_init = np.random.rand(R, V.shape[1])
     else:
-        print("pitch_set", pitch_set)
         W_init = init_W_pitch_onset(V.shape[0], pitch_set, freq_res)
         H_init, _, _ = init_H_score_onset(V.shape[1], score_annotations, frame_res, pitch_set)
     return W_init, H_init
