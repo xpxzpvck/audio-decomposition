@@ -26,6 +26,7 @@ def template_pitch(K: int, pitch: float, freq_res: float, tol_pitch: float = 0.0
 
 def init_W_pitch_onset(K: int, pitch_set: np.ndarray, freq_res: float, tol_pitch: float = 0.05) -> np.ndarray:
     """Initialize template matrix with onset and sustained templates."""
+    print(pitch_set)
     W = np.zeros((K, 2 * len(pitch_set)))
     for idx, pitch in enumerate(pitch_set):
         W[:, 2 * idx] = 0.1 
@@ -56,20 +57,21 @@ def init_H_score_onset(
         onset_start_idx = max(0, int((start - tol_onset[0]) / frame_res))
         onset_end_idx = min(N, int((start + tol_onset[1]) / frame_res))
         
-        H[2 * idx, onset_start_idx:onset_end_idx] = 1  # Onset
-        H[2 * idx + 1, start_idx:end_idx] = 1  # Sustain
+        H[2 * idx, onset_start_idx:onset_end_idx] = 1
+        H[2 * idx + 1, start_idx:end_idx] = 1
 
-    label_pitch = np.repeat(pitch_set, 2)  # [p0, p0, p1, p1, ...]
+    label_pitch = np.repeat(pitch_set, 2)
     
     return H, pitch_set, label_pitch
 
 def split_annotation(annotation: pd.DataFrame) -> List[pd.DataFrame]:
     """Split annotation by label."""
-    return [annotation[annotation["Label"] == inst] for inst in annotation["Label"].unique()]
+    return [annotation[annotation["Label"] == l] for l in annotation["Label"].unique()]
 
 def initialize_WH(
-    V: np.ndarray, R: int,
+    V: np.ndarray, R: int = None,
     score_annotations: Optional[pd.DataFrame] = None,
+    pitch_set: Optional[np.ndarray] = None,
     freq_res: Optional[float] = None, frame_res: Optional[float] = None
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Initialize W and H matrices randomly or score-informed."""
@@ -77,14 +79,15 @@ def initialize_WH(
         W_init = np.random.rand(V.shape[0], R)
         H_init = np.random.rand(R, V.shape[1])
     else:
-        pitch_set = pitch_from_annotation(score_annotations)
+        print("pitch_set", pitch_set)
         W_init = init_W_pitch_onset(V.shape[0], pitch_set, freq_res)
-        H_init, _, _ = init_H_score_onset(V.shape[1], score_annotations, frame_res, pitch_set=pitch_set)
+        H_init, _, _ = init_H_score_onset(V.shape[1], score_annotations, frame_res, pitch_set)
     return W_init, H_init
 
 def reconstruct_sources(
     X: np.ndarray, W: np.ndarray, H: np.ndarray,
     score_annotations: Optional[pd.DataFrame] = None,
+    pitch_set: Optional[np.ndarray] = None,
     frame_res: Optional[float] = None,
     epsilon: float = 1e-10
 ) -> List[np.ndarray]:
@@ -97,7 +100,6 @@ def reconstruct_sources(
             mask = np.outer(W[:, r], H[r, :]) / (WH + epsilon)
             sources.append(X * mask)
     else:
-        pitch_set = pitch_from_annotation(score_annotations)
         for subset in split_annotation(score_annotations):
             C_m, _, _ = init_H_score_onset(WH.shape[1], subset, frame_res, pitch_set=pitch_set)
             H_m = H * C_m
@@ -138,15 +140,36 @@ def nmf(
     return W, H, V_approx, error
 
 
-def separate_sources(X, R, score_annotations=None, freq_res=None, frame_res=None, max_iter=1000, threshold=0.0001):
+def _separate_score_informed(X, V, score_annotations, freq_res, frame_res, max_iter, threshold):
+    pitch_set = pitch_from_annotation(score_annotations)
+    W_init, H_init = initialize_WH(V, score_annotations=score_annotations, pitch_set=pitch_set, freq_res=freq_res, frame_res=frame_res)
+    W, H, _, _ = nmf(V, len(pitch_set)*2, W=W_init, H=H_init, max_iter=max_iter, threshold=threshold)
+    return reconstruct_sources(X, W, H, score_annotations, pitch_set, frame_res)
+
+
+def _separate_blind(X, V, R, max_iter, threshold):
+    W_init, H_init = initialize_WH(V, R=R)
+    W, H, _, _ = nmf(V, R=R, W=W_init, H=H_init, max_iter=max_iter, threshold=threshold)
+    return reconstruct_sources(X, W, H)
+
+def separate_sources(
+    X: np.ndarray,
+    R: Optional[int] = None,
+    score_annotations: Optional[pd.DataFrame] = None,
+    freq_res: Optional[float] = None,
+    frame_res: Optional[float] = None,
+    max_iter: int = 1000,
+    threshold: float = 1e-4
+) -> List[np.ndarray]:
     """
-    Perform source separation on spectrogram V.
+    Perform source separation on complex spectrogram X.
+    Uses either blind NMF (random init) or score-informed NMF (from annotations).
     """
     V = np.abs(X)
-    if score_annotations is not None:
-        R *= 2
-    W_init, H_init = initialize_WH(V, R, score_annotations, freq_res, frame_res)
-    W, H, _, _ = nmf(V, R, W=W_init, H=H_init, max_iter=max_iter, threshold=threshold)
-    sources = reconstruct_sources(X, W, H, score_annotations, frame_res)
 
-    return sources
+    if score_annotations is not None:
+        return _separate_score_informed(X, V, score_annotations, freq_res, frame_res, max_iter, threshold)
+    else:
+        if R is None:
+            raise ValueError("Rank R must be specified for blind NMF.")
+        return _separate_blind(X, V, R, max_iter, threshold)
