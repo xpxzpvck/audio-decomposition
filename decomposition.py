@@ -43,7 +43,7 @@ def _separate_score_informed(X, V, score_annotations, freq_res, frame_res, max_i
 
 def _separate_blind(X, V, R, max_iter, threshold):
     W_init, H_init = initialization.initialize_WH(V, R=R)
-    W, H, _, _ = nmf(V, R=R, W=W_init, H=H_init, max_iter=max_iter, threshold=threshold)
+    W, H, _, _ = nmf.nmf(V, R=R, W=W_init, H=H_init, max_iter=max_iter, threshold=threshold)
     return reconstruct_sources(X, W, H)
 
 def separate_sources(
