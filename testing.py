@@ -1,19 +1,16 @@
 import numpy as np
-import librosa
-import soundfile as sf
-from sklearn.decomposition import NMF as SklearnNMF
-from scipy.signal import correlate
-from decomposition import separate_sources
-from sklearn.metrics.pairwise import cosine_similarity
 
 def compute_cosine_similarity(mag_clean, mag_estimate):
     """
     Compute cosine similarity between two STFT magnitude spectrograms.
     """
-    assert mag_clean.shape == mag_estimate.shape, "STFT shapes must match"
-    v1 = mag_clean.flatten().reshape(1, -1)
-    v2 = mag_estimate.flatten().reshape(1, -1)
-    return float(cosine_similarity(v1, v2)[0][0])
+    mag_clean_flat = mag_clean.flatten()
+    mag_estimate_flat = mag_estimate.flatten()
+
+    dot_product = np.dot(mag_clean_flat, mag_estimate_flat)
+    magnitude_A = np.linalg.norm(mag_clean_flat)
+    magnitude_B = np.linalg.norm(mag_estimate_flat)
+    return dot_product / (magnitude_A * magnitude_B)
 
 def compute_normalized_cross_correlation(mag_clean, mag_estimate):
     """
@@ -41,8 +38,12 @@ def compute_snr_db(mag_clean, mag_estimate):
 def evaluate_sources(reference_sources, estimated_sources):
     metrics = []
     for ref, est in zip(reference_sources, estimated_sources):
-        cs = cosine_similarity(ref, est)
-        cc = compute_normalized_cross_correlation(ref, est)
-        snr = compute_snr_db(ref, est)
+        min_time_dim = min(ref.shape[1], est.shape[1])
+        mag_clean = ref[:, :min_time_dim]
+        mag_estimate = est[:, :min_time_dim]
+        
+        cs = compute_cosine_similarity(mag_clean, mag_estimate)
+        cc = compute_normalized_cross_correlation(mag_clean, mag_estimate)
+        snr = compute_snr_db(mag_clean, mag_estimate)
         metrics.append({'cosine_similarity': cs, 'cross_correlation': cc, "signal_to_noise": snr})
     return metrics
