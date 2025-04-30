@@ -46,6 +46,3 @@ def evaluate_sources(reference_sources, estimated_sources):
         snr = compute_snr_db(ref, est)
         metrics.append({'cosine_similarity': cs, 'cross_correlation': cc, "signal_to_noise": snr})
     return metrics
-
-def load_audio_sources(audio_paths, sr=22050):
-    return [librosa.load(p, sr=sr)[0] for p in audio_paths]
